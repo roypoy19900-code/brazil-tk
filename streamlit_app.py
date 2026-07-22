@@ -1,126 +1,108 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 from io import BytesIO
 import os
 import datetime
 
-# --- 页面配置 ---
+# --- 1. 页面配置 ---
 st.set_page_config(page_title="巴西TK处理工具", layout="wide")
 st.title("🇧🇷 巴西TK处理工具")
 st.caption("系统已内置 A 文件和 C 文件。您只需上传 B 文件并填写店铺网址，即可一键完成数据处理。")
 
-# --- 1. 辅助函数：智能查找列名 ---
-def find_column(df, possible_names):
+# --- 2. 辅助函数：智能查找并重命名关键列 ---
+def standardize_order_id(df, file_label):
     """
-    在 DataFrame 中查找目标列。
-    支持模糊匹配，忽略大小写和首尾空格。
+    在 DataFrame 中查找类似 'OrderID' 的列，并将其重命名为 'OrderID'。
+    如果找不到，则报错提示。
     """
-    # 获取所有列名并清洗（去空格、转小写）用于比对
-    clean_cols = {col: str(col).strip().lower() for col in df.columns}
+    # 常见的订单号列名写法
+    candidates = ['orderid', 'order id', 'order_id', '订单号', '平台唯一单号', 'platform unique order id']
     
-    for name in possible_names:
-        target = name.lower()
-        # 检查是否有列清洗后等于目标名称
-        for original_col, cleaned_col in clean_cols.items():
-            if cleaned_col == target:
-                return original_col # 返回原始列名（保留大小写）
-    return None
+    # 获取所有列名并转为小写用于比对
+    col_map = {str(c).strip().lower(): c for c in df.columns}
+    
+    found_col = None
+    for cand in candidates:
+        if cand in col_map:
+            found_col = col_map[cand]
+            break
+            
+    if found_col:
+        # 重命名并返回
+        return df.rename(columns={found_col: 'OrderID'}), True
+    else:
+        st.error(f"❌ 在 {file_label} 中找不到订单号列！当前列名：{list(df.columns)}")
+        return df, False
 
-# --- 2. 加载内置文件 (A & C) ---
-@st.cache_data
-def load_builtin_files():
-    try:
-        # 请确保你的仓库里有这两个文件，或者修改为实际文件名
-        # 如果文件不在根目录，需要加上路径，例如 'data/A.xlsx'
-        df_a = pd.read_excel("A.xlsx") 
-        df_c = pd.read_excel("C.xlsx")
-        return df_a, df_c
-    except Exception as e:
-        st.error(f"加载内置文件失败: {e}")
-        return None, None
+# --- 3. 侧边栏或顶部输入区 ---
+file_b = st.file_uploader("上传巴西TK原始订单文件 (B.xlsx)", type=["xlsx", "xls"])
+shop_url = st.text_input("填写店铺网址 (必填)", placeholder="https://vt.tiktok.com/...")
 
-df_a, df_c = load_builtin_files()
+# 模拟加载内置文件 (请确保你的项目目录下有这两个文件)
+# 如果没有，这里会报错，请根据实际文件名修改
+try:
+    # 假设 A 文件和 C 文件就在当前目录下
+    df_a_raw = pd.read_excel('A_final_complete (1).xlsx') 
+    df_c_raw = pd.read_excel('车车-2024.xlsx')
+    files_loaded = True
+except Exception as e:
+    st.warning(f"⚠️ 无法加载内置文件: {e}")
+    files_loaded = False
 
-# --- 3. 用户输入区域 ---
-col1, col2 = st.columns([3, 1])
-with col1:
-    file_b = st.file_uploader("上传巴西TK原始订单文件 (B.xlsx)", type=["xlsx", "xls", "csv"])
-with col2:
-    shop_url = st.text_input("填写店铺网址 (必填)", placeholder="https://vt.tiktok.com/...")
-
-# --- 4. 处理逻辑 ---
-if st.button("🚀 开始处理", type="primary"):
+# --- 4. 核心处理逻辑 ---
+if st.button("🚀 开始处理"):
     if not file_b or not shop_url:
-        st.warning("请上传 B 文件并填写店铺网址！")
-    elif df_a is None or df_c is None:
-        st.error("系统内置文件缺失，请检查仓库文件。")
+        st.error("请上传文件并填写店铺网址！")
+    elif not files_loaded:
+        st.error("内置文件加载失败，请检查服务器文件！")
     else:
         try:
-            # 读取上传的 B 文件
-            if file_b.name.endswith('.csv'):
-                df_b = pd.read_csv(file_b)
-            else:
-                df_b = pd.read_excel(file_b)
+            # 1. 读取上传的 B 文件
+            df_b = pd.read_excel(file_b)
+            
+            # 2. 标准化三张表的订单号列名
+            df_a, ok_a = standardize_order_id(df_a_raw, "A文件")
+            df_b, ok_b = standardize_order_id(df_b, "B文件(上传)")
+            df_c, ok_c = standardize_order_id(df_c_raw, "C文件")
+            
+            if not (ok_a and ok_b and ok_c):
+                st.stop() # 如果有任何一个文件找不到订单号列，停止运行
 
-            progress_bar = st.progress(0)
-            status_text = st.empty()
+            # 3. 执行合并 (左连接，保留 B 文件的所有行)
+            # 先合并 A
+            result = pd.merge(df_b, df_a, on='OrderID', how='left', suffixes=('_B', '_A'))
+            # 再合并 C
+            result = pd.merge(result, df_c, on='OrderID', how='left', suffixes=('', '_C'))
+            
+            # 4. 生成店铺链接 (覆盖或新增一列)
+            # 注意：这里假设你要用 B 文件的 OrderID 拼接链接
+            result['店铺链接'] = f"{shop_url.strip('/')}/page=TikTokShop&product_id={result['OrderID']}" 
+            
+            # 调整列顺序，把重要的放前面 (可选)
+            cols = ['OrderID', '店铺链接'] + [c for c in result.columns if c not in ['OrderID', '店铺链接']]
+            result = result[cols]
 
-            # === 步骤 1: 数据清洗与匹配 ===
-            status_text.text("正在执行第 1 步：清洗数据...")
+            # --- 5. 显示结果与下载 ---
+            st.success(f"处理完成！共生成 {len(result)} 条数据。")
+            st.dataframe(result.head()) # 预览前几行
             
-            # 【关键修复】智能查找 OrderID 列
-            # 这里列出了所有可能的列名写法，代码会自动去匹配
-            order_id_col = find_column(df_b, ["OrderID", "Order ID", "order_id", "订单号", "订单编号"])
-            
-            if order_id_col is None:
-                st.error(f"❌ 找不到订单号列！\n当前文件包含的列：{list(df_b.columns)}")
-                st.stop()
-            
-            # 统一重命名为 'OrderID' 方便后续处理
-            df_b.rename(columns={order_id_col: "OrderID"}, inplace=True)
-            
-            # 模拟业务逻辑 (请根据实际需求替换此处)
-            # 假设我们要把 A 表的某些信息合并到 B 表
-            # result_df = pd.merge(df_b, df_a[['OrderID', 'SomeInfo']], on='OrderID', how='left')
-            
-            # 这里为了演示，我们只做简单的标记
-            result_df = df_b.copy()
-            result_df['店铺链接'] = shop_url
-            
-            progress_bar.progress(50)
-            status_text.text("正在执行第 2 步：计算与生成...")
-            
-            # 模拟耗时操作
-            import time
-            time.sleep(1) 
-            
-            progress_bar.progress(100)
-            status_text.text("处理完成！✅")
-
-            # === 步骤 2: 生成下载文件 ===
-            # 将结果转换为 Excel 二进制流
+            # 生成 Excel 二进制流
             output = BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                result_df.to_excel(writer, index=False, sheet_name='处理结果')
+                result.to_excel(writer, index=False, sheet_name='Processed_Data')
             
             processed_data = output.getvalue()
             
-            # 生成带时间戳的文件名
-            now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            download_filename = f"Brazil_TK_Processed_{now_str}.xlsx"
-
-            # 显示成功提示
-            st.success("处理成功！请点击下方按钮下载文件。")
-            
-            # 显示下载按钮
+            # 生成下载按钮
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             st.download_button(
-                label="📥 点击下载 Excel 文件",
+                label="📥 点击下载处理结果",
                 data=processed_data,
-                file_name=download_filename,
+                file_name=f"Brazil_TK_Processed_{timestamp}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
         except Exception as e:
-            st.error(f"处理过程中发生未知错误: {e}")
-            st.exception(e) # 显示详细报错信息以便调试
+            st.error(f"处理出错: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
