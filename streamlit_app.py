@@ -5,14 +5,14 @@ from io import BytesIO
 import os
 
 # --- 网页界面部分 ---
-st.title("📊 自动化订单数据处理工具")
-st.caption("系统已内置 A 文件和 C 文件。您只需上传 B 文件并填写店铺网址，即可一键完成 11 步数据处理。")
+st.title("📊 巴西TK处理工具")
+st.caption("系统已内置 寻汇模板 文件和 订单编号函数 文件。您只需上传 原始订单 文件并填写店铺网址即可。仅支持巴西TK，其他请移步到导航页。")
 
 # 1. 修改上传框，支持 xlsx, xls, csv 三种格式
-file_b = st.file_uploader("上传 B 文件 (数据源)", type=["xlsx", "xls", "csv"])
+file_b = st.file_uploader("上传巴西TK原始订单文件（请勿修改）", type=["xlsx", "xls", "csv"])
 
 # 2. URL 填写框
-shop_url = st.text_input("填写店铺网址 (将填入A文件H列)", placeholder="例如：https://www.yourshop.com")
+shop_url = st.text_input("填写店铺网址（必填）", placeholder="例如：https://www.yourshop.com")
 
 # 检查内置文件是否存在
 if not os.path.exists("A.xlsx") or not os.path.exists("C.xlsx"):
@@ -122,4 +122,4 @@ else:
             except Exception as e:
                 st.error(f"处理过程中发生错误：{str(e)}")
         else:
-            st.warning("⚠️ 请先上传 B 文件并填写店铺网址后再点击处理！")
+            st.warning("⚠️ 巴西TK原始订单文件并填写店铺网址后再点击处理！")
