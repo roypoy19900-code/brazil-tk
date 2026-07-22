@@ -6,22 +6,30 @@ import os
 
 # --- 网页界面部分 ---
 st.title("📊 自动化订单数据处理工具")
-st.caption("系统已内置 A 文件和 C 文件。您只需上传 B 文件，即可一键完成 11 步数据处理。")
+st.caption("系统已内置 A 文件和 C 文件。您只需上传 B 文件并填写店铺网址，即可一键完成 11 步数据处理。")
 
-# 仅需上传 B 文件
-file_b = st.file_uploader("上传 B 文件 (数据源)", type=["xlsx"])
+# 1. 修改上传框，支持 xlsx, xls, csv 三种格式
+file_b = st.file_uploader("上传 B 文件 (数据源)", type=["xlsx", "xls", "csv"])
+
+# 2. URL 填写框
+shop_url = st.text_input("填写店铺网址 (将填入A文件H列)", placeholder="例如：https://www.yourshop.com")
 
 # 检查内置文件是否存在
 if not os.path.exists("A.xlsx") or not os.path.exists("C.xlsx"):
     st.error("❌ 错误：系统未检测到内置的 A.xlsx 或 C.xlsx 文件，请检查 GitHub 仓库！")
 else:
     if st.button("🚀 开始处理"):
-        if file_b:
+        if file_b and shop_url:  # 确保文件和URL都已填写
             try:
-                # 1. 读取内置文件和上传的B文件
+                # 1. 读取内置的 A 和 C 文件
                 df_a = pd.read_excel("A.xlsx")
                 df_c = pd.read_excel("C.xlsx")
-                df_b = pd.read_excel(file_b)
+                
+                # 2. 根据上传文件的后缀名，自动选择读取方式
+                if file_b.name.endswith('.csv'):
+                    df_b = pd.read_csv(file_b)
+                else:  # 如果是 .xlsx 或 .xls
+                    df_b = pd.read_excel(file_b)
                 
                 progress_bar = st.progress(0)
                 status_text = st.empty()
@@ -83,6 +91,12 @@ else:
                 # --- 第九步：商品单价计算 ---
                 status_text.text("⏳ 正在执行第 9 步：计算商品单价...")
                 df_a['UnitPrice'] = df_a['OrderAmount'] / df_a['Quantity']
+                progress_bar.progress(85)
+
+                # --- 填写店铺网址到H列 ---
+                status_text.text("⏳ 正在填写店铺网址...")
+                if '店铺网址' in df_a.columns:
+                    df_a.loc[2:2+len(df_b)-1, '店铺网址'] = shop_url
                 progress_bar.progress(90)
                 
                 # --- 第十一步：删除0金额 ---
@@ -108,4 +122,4 @@ else:
             except Exception as e:
                 st.error(f"处理过程中发生错误：{str(e)}")
         else:
-            st.warning("⚠️ 请先上传 B 文件后再点击处理！")
+            st.warning("⚠️ 请先上传 B 文件并填写店铺网址后再点击处理！")
