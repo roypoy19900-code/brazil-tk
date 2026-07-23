@@ -1,122 +1,312 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>自动化订单数据处理工具</title>
-    <!-- 引入 SheetJS -->
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-    <!-- 引入 FileSaver -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 450px; text-align: center; position: relative; z-index: 10; }
-        h2 { color: #333; margin-bottom: 20px; font-size: 22px; }
-        
-        /* 输入框组 */
-        .input-group { margin-bottom: 20px; text-align: left; }
-        .input-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; font-size: 14px; }
-        .input-group input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 14px; transition: border 0.3s; }
-        .input-group input[type="text"]:focus { border-color: #007bff; outline: none; }
-        
-        /* 文件上传美化 */
-        .file-upload-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
-        .file-upload-btn { border: 1px solid #ddd; color: #555; background-color: white; padding: 8px 20px; border-radius: 6px; font-size: 14px; font-weight: bold; width: 100%; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; }
-        .file-upload-btn:hover { background-color: #f9f9f9; }
-        input[type=file] { font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%; width: 100%; }
-        
-        /* 按钮 */
-        button#processBtn { background-color: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; width: 100%; transition: background 0.3s; margin-top: 10px; }
-        button#processBtn:hover { background-color: #0056b3; }
-        button#processBtn:disabled { background-color: #ccc; cursor: not-allowed; }
-        
-        /* 状态与进度条区域 - 关键修复部分 */
-        .status-area { margin-top: 25px; min-height: 40px; }
-        .status-text { font-size: 14px; color: #666; margin-bottom: 8px; display: block; min-height: 20px;}
-        
-        /* 进度条容器 - 必须存在 */
-        #progressContainer { 
-            width: 100%; 
-            background-color: #e9ecef; 
-            border-radius: 10px; 
-            height: 10px; 
-            overflow: hidden; 
-            display: none; /* 默认隐藏，JS控制显示 */
-            margin-top: 5px;
-        }
-        /* 进度条填充 - 必须存在 */
-        #progressBar { 
-            width: 0%; 
-            height: 100%; 
-            background-color: #28a745; 
-            transition: width 0.3s ease; 
-        }
-
-        /* 结果下载区 */
-        #resultArea { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px dashed #ddd; animation: fadeIn 0.5s; }
-        .download-btn { background-color: #28a745 !important; margin-top: 10px; }
-        .download-btn:hover { background-color: #218838 !important; }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    </style>
+  <meta charset="UTF-8" />
+  <title>订单Excel批量处理工具</title>
+  <style>
+    * {box-sizing: border-box; margin: 0; padding: 0;font-family: system-ui}
+    body {padding:30px;max-width: 1100px;margin: 0 auto;background:#f7f8fa}
+    .card {background:#fff;padding:24px;border-radius:12px;box-shadow:0 2px 12px #00000010;margin-bottom:20px}
+    h2 {margin-bottom:16px;color:#222}
+    .row{margin:14px 0}
+    label{display:block;margin-bottom:6px;font-weight:500}
+    input[type="file"],input[type="text"]{width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:15px}
+    button{padding:12px 24px;background:#1677ff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px;margin-right:12px}
+    button:disabled{background:#94bfff;cursor:not-allowed}
+    #log{margin-top:16px;padding:12px;background:#f5f7fa;border-radius:6px;white-space:pre-wrap;max-height:220px;overflow:auto}
+  </style>
+  <!-- CDN引入依赖，无需本地文件 -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 </head>
 <body>
-
-<div class="container">
-    <h2>📊 自动化订单处理工具</h2>
-    <p style="color:#666; font-size:13px; margin-bottom:20px;">系统已内置 A 文件 (模板) 和 C 文件 (公式)。您只需上传 B 文件并填写信息。</p>
-
-    <!-- 1. 店铺 URL -->
-    <div class="input-group">
-        <label for="shopUrl">1. 填写店铺 URL (必填)</label>
-        <input type="text" id="shopUrl" placeholder="例如：https://shopee.cn/shop/..." required>
+  <div class="card">
+    <h2>文件上传区</h2>
+    <div class="row">
+      <label>A模板文件（固定模板）</label>
+      <input type="file" id="fileA" accept=".xlsx"/>
     </div>
-
-    <!-- 2. 上传文件 -->
-    <div class="input-group">
-        <label>2. 上传 B 文件 (Excel)</label>
-        <div class="file-upload-wrapper">
-            <button class="file-upload-btn">
-                <span id="fileName">点击选择文件...</span>
-                <span>📂</span>
-            </button>
-            <input type="file" id="fileInput" accept=".xlsx, .xls" required>
-        </div>
+    <div class="row">
+      <label>B源文件（待清洗原始数据）</label>
+      <input type="file" id="fileB" accept=".xlsx"/>
     </div>
-
-    <!-- 操作按钮 -->
-    <button id="processBtn" onclick="startProcessing()">开始处理 (共11步)</button>
-
-    <!-- 状态显示区域 (JS 需要找这里的 ID) -->
-    <div class="status-area">
-        <span class="status-text" id="statusText">等待操作...</span>
-        
-        <!-- 进度条容器 (JS 需要找这里的 ID) -->
-        <div id="progressContainer">
-            <div id="progressBar"></div>
-        </div>
+    <div class="row">
+      <label>C公式文件（计算公式）</label>
+      <input type="file" id="fileC" accept=".xlsx"/>
     </div>
-
-    <!-- 结果下载区域 -->
-    <div id="resultArea">
-        <p style="color: #28a745; font-weight: bold; margin:0;">✅ 处理完成！</p>
-        <button class="download-btn" onclick="downloadResult()">⬇️ 下载处理后的结果文件</button>
+    <div class="row">
+      <label>店铺URL（必填）</label>
+      <input type="text" id="shopUrl" placeholder="粘贴店铺完整网址"/>
     </div>
-</div>
+    <div class="row">
+      <button id="runBtn">开始批量处理</button>
+      <button id="resetBtn">全部重置</button>
+    </div>
+    <div id="log"></div>
+  </div>
 
-<!-- 简单的脚本用于显示文件名 -->
 <script>
-    document.getElementById('fileInput').addEventListener('change', function(e) {
-        var fileName = e.target.files[0] ? e.target.files[0].name : "点击选择文件...";
-        document.getElementById('fileName').innerText = fileName;
-        // 同时更新一下全局的状态提示
-        if(window.statusText) window.statusText.innerText = "✅ 已读取文件: " + fileName + "，点击开始处理";
+// ===================== 【全局配置区】后续改所有规则只改这里，不用动业务代码 =====================
+const CONFIG = {
+  // 固定关键词
+  delStr: "BRL",
+  oldChar: ",",
+  newChar: ".",
+  subStatusKeep: "已送达",
+  fixedCurrency: "BRL",
+  platformText: "TK",
+  dateOutFormat: "YYYY/MM/DD",
+
+  // 列映射 大写字母
+  BCol: {
+    substatus: "D",
+    orderAmount: "X",
+    createdTimeAC: "AC",
+    createdTimeC: "C",
+    orderID: "A",
+    quantity: "L",
+    trackingID: "AK",
+    shippingProvider: "AD"
+  },
+  ACol: {
+    orderID: "A",
+    orderDate: "B",
+    currency: "C",
+    amount: "D",
+    quantity: "F",
+    unitPrice: "G",
+    shopUrl: "H",
+    tracking: "I",
+    logistics: "J",
+    platform: "K"
+  },
+  lockAFirstRows: 2 // A文件锁定前2行禁止写入
+};
+
+// 全局缓存文件数据
+let bufA, bufB, bufC;
+let workbookA, workbookB, workbookC;
+let sheetA, sheetB, sheetC;
+let calcFormula = "";
+const logDom = document.getElementById("log");
+
+function printLog(text) {
+  logDom.innerHTML += `${new Date().toLocaleTimeString()} ${text}\n`;
+  logDom.scrollTop = logDom.scrollHeight;
+}
+
+// 重置全部
+document.getElementById("resetBtn").onclick = ()=>{
+  location.reload();
+};
+
+// 文件读取监听
+document.getElementById("fileA").addEventListener("change", async e=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  bufA = await f.arrayBuffer();
+  workbookA = XLSX.read(new Uint8Array(bufA), {type:"array"});
+  sheetA = workbookA.Sheets[workbookA.SheetNames[0]];
+  printLog("✅ A模板文件读取成功");
+});
+document.getElementById("fileB").addEventListener("change", async e=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  bufB = await f.arrayBuffer();
+  workbookB = XLSX.read(new Uint8Array(bufB), {type:"array"});
+  sheetB = workbookB.Sheets[workbookB.SheetNames[0]];
+  printLog("✅ B源文件读取成功");
+});
+document.getElementById("fileC").addEventListener("change", async e=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  bufC = await f.arrayBuffer();
+  workbookC = XLSX.read(new Uint8Array(bufC), {type:"array"});
+  sheetC = workbookC.Sheets[workbookC.SheetNames[0]];
+  // 读取C文件第一个有效单元格作为计算公式
+  const range = XLSX.utils.decode_range(sheetC["!ref"]||"A1:A1");
+  calcFormula = sheetC[XLSX.utils.encode_cell({r:0,c:0})]?.f || sheetC[XLSX.utils.encode_cell({r:0,c:0})]?.v;
+  printLog(`✅ C公式读取完成，公式内容：${calcFormula}`);
+});
+
+// 日期格式化：任意时间转 YYYY/MM/DD
+function formatDateToYMD(inputDateStr){
+  try{
+    const dt = new Date(inputDateStr);
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth()+1).padStart(2,"0");
+    const d = String(dt.getDate()).padStart(2,"0");
+    return `${y}/${m}/${d}`;
+  }catch(e){
+    return "";
+  }
+}
+
+// 通用列字母转数字
+function colLetterToNum(letter){
+  return XLSX.utils.decode_col(letter);
+}
+function numToColLetter(num){
+  return XLSX.utils.encode_col(num);
+}
+
+// 主执行按钮
+document.getElementById("runBtn").onclick = async ()=>{
+  const btn = document.getElementById("runBtn");
+  btn.disabled = true;
+  logDom.innerHTML = "";
+  const shopUrl = document.getElementById("shopUrl").value.trim();
+
+  // 前置校验
+  if(!bufA || !bufB || !bufC) return printLog("❌ 请上传全部A/B/C三个Excel文件"), btn.disabled=false;
+  if(!shopUrl) return printLog("❌ 必须填写店铺URL"), btn.disabled=false;
+  if(!calcFormula) return printLog("❌ C文件未读取到计算公式"), btn.disabled=false;
+
+  try{
+    // ========== 步骤1：B文件全表替换：删除BRL ,替换为. ==========
+    printLog("1/11 执行B文件全局字符替换");
+    const allCellsB = Object.keys(sheetB);
+    allCellsB.forEach(key=>{
+      if(key.startsWith("!")) return;
+      const cell = sheetB[key];
+      if(typeof cell.v === "string"){
+        cell.v = cell.v.replaceAll(CONFIG.delStr, "").replaceAll(CONFIG.oldChar, CONFIG.newChar);
+      }
     });
+
+    // ========== 步骤2：B删除第二行 + 筛选D列已送达、X列≠0 ==========
+    printLog("2/11 B文件筛选清洗、删除第二行");
+    let rangeB = XLSX.utils.decode_range(sheetB["!ref"]);
+    const newRows = [];
+    // 先收集所有行，跳过第2行（r=1，行索引从0开始）
+    for(let r=0;r<=rangeB.e.r;r++){
+      if(r===1) continue; // 删除原始第二行
+      const cellD = sheetB[XLSX.utils.encode_cell({r,c:colLetterToNum(CONFIG.BCol.substatus)})];
+      const cellX = sheetB[XLSX.utils.encode_cell({r,c:colLetterToNum(CONFIG.BCol.orderAmount)})];
+      const valD = cellD?.v ?? "";
+      const valX = Number(cellX?.v ?? 0);
+      if(valD === CONFIG.subStatusKeep && valX !== 0){
+        newRows.push(r);
+      }
+    }
+    // 重建sheetB，只保留符合行
+    const jsonAll = XLSX.utils.sheet_to_json(sheetB, {header:1});
+    const filterData = newRows.map(r=>jsonAll[r]);
+    sheetB = XLSX.utils.aoa_to_sheet(filterData);
+
+    // ========== 步骤3：B文件AC列日期统一 YYYY/MM/DD ==========
+    printLog("3/11 B文件AC列日期格式化");
+    rangeB = XLSX.utils.decode_range(sheetB["!ref"]);
+    const acCol = colLetterToNum(CONFIG.BCol.createdTimeAC);
+    for(let r=0;r<=rangeB.e.r;r++){
+      const cellKey = XLSX.utils.encode_cell({r,c:acCol});
+      const cell = sheetB[cellKey];
+      if(cell?.v){
+        cell.v = formatDateToYMD(cell.v);
+        cell.t = "s";
+      }
+    }
+
+    // ========== 步骤4：A文件解除保护 + 锁定前2行禁止写入 ==========
+    printLog("4/11 A文件解除工作表保护，锁定前两行不可修改");
+    delete sheetA["!protect"]; // 移除保护
+    const maxRowA = XLSX.utils.decode_range(sheetA["!ref"]||"A1:A1").e.r;
+
+    // 收集B有效总行数
+    const finalBRange = XLSX.utils.decode_range(sheetB["!ref"]);
+    const totalDataRows = finalBRange.e.r + 1;
+
+    // 工具：写入A文件，强制判断行号，前CONFIG.lockAFirstRows行禁止写入
+    function writeA(rowIndex, colLetter, value){
+      if(rowIndex < CONFIG.lockAFirstRows) return;
+      const c = colLetterToNum(colLetter);
+      const key = XLSX.utils.encode_cell({r:rowIndex, c});
+      if(!sheetA[key]) sheetA[key] = {};
+      sheetA[key].v = value;
+      sheetA[key].t = typeof value === "number" ? "n" : "s";
+    }
+
+    // ========== 步骤5：C公式计算B-A列，写入A-A列订单编号 ==========
+    printLog("5/11 按C公式计算Order ID回填A文件");
+    for(let r=0;r<totalDataRows;r++){
+      const bAKey = XLSX.utils.encode_cell({r,c:colLetterToNum(CONFIG.BCol.orderID)});
+      const bAVal = sheetB[bAKey]?.v ?? "";
+      let computeRes;
+      try{
+        // 简单替换公式占位，适配：公式内用{{val}}代表B列值
+        let realFormula = calcFormula.replaceAll("{{val}}", bAVal);
+        computeRes = eval(realFormula);
+      }catch(e){computeRes = "";}
+      writeA(r+CONFIG.lockAFirstRows, CONFIG.ACol.orderID, computeRes);
+    }
+
+    // ========== 步骤6：B-C列日期写入A-B列订单日期 ==========
+    printLog("6/11 回填订单日期");
+    const bDateCol = colLetterToNum(CONFIG.BCol.createdTimeC);
+    for(let r=0;r<totalDataRows;r++){
+      const cell = sheetB[XLSX.utils.encode_cell({r,c:bDateCol})];
+      writeA(r+CONFIG.lockAFirstRows, CONFIG.ACol.orderDate, cell?.v ?? "");
+    }
+
+    // ========== 步骤7：金额、币种、商品数量 ==========
+    printLog("7/11 回填金额、币种、商品数量");
+    const bAmtCol = colLetterToNum(CONFIG.BCol.orderAmount);
+    const bQtyCol = colLetterToNum(CONFIG.BCol.quantity);
+    for(let r=0;r<totalDataRows;r++){
+      const amt = sheetB[XLSX.utils.encode_cell({r,c:bAmtCol})]?.v ?? "";
+      const qty = sheetB[XLSX.utils.encode_cell({r,c:bQtyCol})]?.v ?? "";
+      writeA(r+CONFIG.lockAFirstRows, CONFIG.ACol.amount, amt);
+      writeA(r+CONFIG.lockAFirstRows, CONFIG.ACol.currency, CONFIG.fixedCurrency);
+      writeA(r+CONFIG.lockAFirstRows, CONFIG.ACol.quantity, qty);
+    }
+
+    // ========== 步骤8：G列单价=D/F，防除零 ==========
+    printLog("8/11 自动计算商品单价");
+    for(let r=0;r<totalDataRows;r++){
+      const rowWrite = r+CONFIG.lockAFirstRows;
+      const amt = Number(sheetA[XLSX.utils.encode_cell({r:rowWrite,c:colLetterToNum(CONFIG.ACol.amount)})]?.v || 0);
+      const qty = Number(sheetA[XLSX.utils.encode_cell({r:rowWrite,c:colLetterToNum(CONFIG.ACol.quantity)})]?.v || 0);
+      let price = "-";
+      if(qty !== 0) price = (amt/qty).toFixed(2);
+      writeA(rowWrite, CONFIG.ACol.unitPrice, price);
+    }
+
+    // ========== 步骤9：快递单号、物流企业 ==========
+    printLog("9/11 回填快递与物流名称");
+    const bTrackCol = colLetterToNum(CONFIG.BCol.trackingID);
+    const bLogCol = colLetterToNum(CONFIG.BCol.shippingProvider);
+    for(let r=0;r<totalDataRows;r++){
+      const track = sheetB[XLSX.utils.encode_cell({r,c:bTrackCol})]?.v ?? "";
+      const logName = sheetB[XLSX.utils.encode_cell({r,c:bLogCol})]?.v ?? "";
+      writeA(r+CONFIG.lockAFirstRows, CONFIG.ACol.tracking, track);
+      writeA(r+CONFIG.lockAFirstRows, CONFIG.ACol.logistics, logName);
+    }
+
+    // ========== 步骤10：K列统一TK ==========
+    printLog("10/11 填充平台名称TK");
+    for(let r=0;r<totalDataRows;r++){
+      writeA(r+CONFIG.lockAFirstRows, CONFIG.ACol.platform, CONFIG.platformText);
+    }
+
+    // ========== 步骤11：店铺URL全部填入H列 ==========
+    printLog("11/11 填入店铺URL");
+    for(let r=0;r<totalDataRows;r++){
+      writeA(r+CONFIG.lockAFirstRows, CONFIG.ACol.shopUrl, shopUrl);
+    }
+
+    // 生成并下载最终A文件
+    workbookA.Sheets[workbookA.SheetNames[0]] = sheetA;
+    const outBuf = XLSX.write(workbookA, {type:"array", bookType:"xlsx"});
+    saveAs(new Blob([outBuf], {type:"application/octet-stream"}), "处理完成_订单模板.xlsx");
+    printLog("🎉 全部11步执行完毕，文件自动开始下载！");
+
+  }catch(err){
+    printLog(`❌ 程序异常：${err.message}`);
+    console.error(err);
+  }finally{
+    btn.disabled = false;
+  }
+};
 </script>
-
-<!-- 引入你的主逻辑脚本 -->
-<script src="script.js"></script>
-
 </body>
 </html>
