@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>订单明细处理工具</title>
+    <title>巴西TK订单转化工具</title>
     <style>
         * {
             margin: 0;
@@ -255,12 +255,12 @@
 <body>
     <div class="container">
         <h1>📊 订单明细处理工具</h1>
-        <p class="subtitle">上传B文件（OrderSKUList），自动处理后生成订单明细表格</p>
+        <p class="subtitle">上传巴西TK原始订单表格，自动处理后生成订单明细表格</p>
         
         <!-- 1. 原有的文件上传区域 -->
         <div class="upload-area" id="uploadArea">
             <div class="upload-icon">📁</div>
-            <div class="upload-text">点击或拖拽上传B文件（.xlsx）</div>
+            <div class="upload-text">点击或拖拽上传文件（.xlsx）</div>
             <div class="upload-hint">支持 Excel 文件格式</div>
             <input type="file" id="fileInput" accept=".xlsx,.xls">
         </div>
@@ -270,7 +270,7 @@
             <label for="shopUrlInput" style="display: block; color: #4a5568; font-weight: 600; margin-bottom: 8px; font-size: 14px;">
                 🌐 店铺网址设置
             </label>
-            <input type="text" id="shopUrlInput" placeholder="请输入店铺网址（将自动填充到H列），留空则默认为空" 
+            <input type="text" id="shopUrlInput" placeholder="请输入店铺网址用于表格填写，可以留空" 
                    style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
             <p style="color: #718096; font-size: 12px; margin-top: 8px;">
                 提示：输入的内容将自动填充到导出文件的“店铺网址”列中。
@@ -302,10 +302,10 @@
         <div class="info-box">
             <div class="info-title">ℹ️ 处理说明</div>
             <ul class="info-list">
-                <li>自动清理数据：删除"BRL"字符，将逗号替换为点号</li>
+                <li>自动清理数据：删除原始订单"BRL"字符，将逗号替换为点号</li>
                 <li>智能筛选：仅保留"已送达"订单，剔除金额为0的记录</li>
                 <li>日期格式化：统一转换为 YYYY/MM/DD 格式</li>
-                <li>订单编号去重：重复订单自动添加后缀（-1, -2等）</li>
+                <li>订单编号去重：公式已经被写入</li>
                 <li>自动计算商品单价：订单金额 ÷ 商品数量</li>
                 <li>完整字段填充：包含物流信息、电商平台等全部字段</li>
             </ul>
