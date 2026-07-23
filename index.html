@@ -217,6 +217,19 @@
         .template-note strong {
             color: #285e61;
         }
+        
+        .debug-info {
+            background: #fef5e7;
+            border-left: 4px solid #f39c12;
+            padding: 12px;
+            margin-top: 15px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #7d6608;
+            display: none;
+            max-height: 200px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
@@ -241,6 +254,8 @@
         </div>
         
         <div class="status" id="status"></div>
+        
+        <div class="debug-info" id="debugInfo"></div>
         
         <div class="file-info" id="fileInfo">
             <div class="file-info-title">📄 文件信息</div>
@@ -295,6 +310,7 @@
         const progressFill = document.getElementById('progressFill');
         const fileInfo = document.getElementById('fileInfo');
         const downloadSection = document.getElementById('downloadSection');
+        const debugInfo = document.getElementById('debugInfo');
         
         // A文件模板结构（硬编码）
         const templateHeaders = [
@@ -306,7 +322,7 @@
         // B文件列映射（根据实际列名）
         const columnMapping = {
             'Order ID': 'A',
-            'Created Time': 'C',
+            'Created Time': 'AC',
             'Order Substatus': 'D',
             'Product Name': 'I',
             'Quantity': 'L',
@@ -374,33 +390,53 @@
             processBtn.disabled = true;
             progressBar.style.display = 'block';
             showStatus('正在处理数据...', 'processing');
+            debugInfo.style.display = 'block';
+            debugInfo.innerHTML = '<strong>调试信息：</strong><br>';
             
             try {
                 const arrayBuffer = await uploadedFile.arrayBuffer();
-                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const workbook = XLSX.read(arrayBuffer, { 
+                    type: 'array',
+                    cellDates: true,  // 关键：正确解析日期
+                    raw: false         // 关键：获取格式化后的值
+                });
                 
                 // 获取第一个工作表
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
                 
-                // 转换为JSON
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                // 转换为二维数组（header:1 返回完整二维数组）
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+                    header: 1,
+                    defval: ''  // 空单元格用空字符串代替
+                });
+                
+                addDebug(`原始数据总行数: ${jsonData.length}`);
+                addDebug(`第1行（表头）前3列: ${JSON.stringify(jsonData[0].slice(0, 3))}`);
+                addDebug(`第2行（说明行）前3列: ${JSON.stringify(jsonData[1].slice(0, 3))}`);
+                addDebug(`第3行（第一条数据）前3列: ${JSON.stringify(jsonData[2].slice(0, 3))}`);
                 
                 updateProgress(10);
                 
                 // 第一步：清理数据
                 showStatus('步骤1/11：清理数据...', 'processing');
                 const cleanedData = cleanData(jsonData);
+                addDebug(`cleanData后总行数: ${cleanedData.length}`);
                 updateProgress(20);
                 
                 // 第二步：筛选数据
                 showStatus('步骤2/11：筛选数据...', 'processing');
                 const filteredData = filterData(cleanedData);
+                addDebug(`filterData后总行数: ${filteredData.length} (表头 + ${filteredData.length - 1} 条数据)`);
                 updateProgress(30);
                 
                 // 第三步：格式化日期
                 showStatus('步骤3/11：格式化日期...', 'processing');
                 const formattedData = formatDates(filteredData);
+                addDebug(`formatDates后总行数: ${formattedData.length}`);
+                if (formattedData.length > 2) {
+                    addDebug(`第一条数据的Created Time: ${formattedData[1][28]}`);
+                }
                 updateProgress(40);
                 
                 // 第四步：准备模板
@@ -411,11 +447,13 @@
                 // 第五步：处理订单编号
                 showStatus('步骤5/11：处理订单编号...', 'processing');
                 const orderIds = processOrderIds(formattedData);
+                addDebug(`orderIds数量: ${orderIds.length}`);
                 updateProgress(60);
                 
                 // 第六步至第十一步：填充数据
                 showStatus('步骤6-11/11：填充数据并生成文件...', 'processing');
                 const result = fillTemplate(templateData, formattedData, orderIds);
+                addDebug(`fillTemplate完成，填充了 ${result.rowCount} 行数据`);
                 updateProgress(90);
                 
                 processedData = result;
@@ -432,6 +470,7 @@
             } catch (error) {
                 console.error('处理错误:', error);
                 showStatus(`❌ 处理失败：${error.message}`, 'error');
+                addDebug(`错误堆栈: ${error.stack}`);
                 processBtn.disabled = false;
             } finally {
                 setTimeout(() => {
@@ -441,11 +480,17 @@
             }
         }
         
+        // 添加调试信息
+        function addDebug(msg) {
+            debugInfo.innerHTML += msg + '<br>';
+            debugInfo.scrollTop = debugInfo.scrollHeight;
+        }
+        
         // 清理数据
         function cleanData(data) {
             if (data.length === 0) return data;
             
-            // 找到表头行
+            // 找到表头行（包含"Order"的行）
             let headerRowIndex = 0;
             for (let i = 0; i < Math.min(10, data.length); i++) {
                 if (data[i] && data[i].some(cell => cell && String(cell).includes('Order'))) {
@@ -454,16 +499,16 @@
                 }
             }
             
+            addDebug(`表头在第 ${headerRowIndex + 1} 行`);
+            
             const headers = data[headerRowIndex];
             const rows = data.slice(headerRowIndex + 1);
             
-            // 清理每行数据
+            // 清理每行数据：删除"BRL"，逗号替换为点号
             const cleaned = rows.map(row => {
                 return row.map(cell => {
                     if (typeof cell === 'string') {
-                        // 删除"BRL"
                         let cleaned = cell.replace(/BRL/gi, '');
-                        // 逗号替换为点号
                         cleaned = cleaned.replace(/,/g, '.');
                         return cleaned.trim();
                     }
@@ -471,7 +516,7 @@
                 });
             });
             
-            // 重新组合
+            // 重新组合：表头 + 清理后的数据
             return [headers, ...cleaned];
         }
         
@@ -485,20 +530,37 @@
             const substatusIndex = headers.findIndex(h => h && String(h).includes('Order Substatus'));
             const amountIndex = headers.findIndex(h => h && String(h).includes('Order Amount'));
             
+            addDebug(`substatusIndex=${substatusIndex}, amountIndex=${amountIndex}`);
+            
             if (substatusIndex === -1 || amountIndex === -1) {
                 throw new Error('找不到必要的列：Order Substatus 或 Order Amount');
             }
             
             // 过滤：保留"已送达"且金额不为0的行
-            const filtered = data.filter((row, index) => {
-                if (index === 0) return true; // 保留表头
-                
-                const substatus = row[substatusIndex];
-                const amount = parseFloat(row[amountIndex]) || 0;
-                
-                return substatus === '已送达' && amount !== 0;
-            });
+            // 注意：data[0]是表头，data[1]是原第2行（说明行），data[2]开始是真实数据
+            const filtered = [data[0]]; // 先加入表头
             
+            for (let i = 1; i < data.length; i++) {
+                const row = data[i];
+                const substatus = row[substatusIndex];
+                
+                // 处理金额：可能是字符串 "30.00" 或数字
+                let amount = 0;
+                const amountVal = row[amountIndex];
+                if (typeof amountVal === 'number') {
+                    amount = amountVal;
+                } else if (typeof amountVal === 'string') {
+                    const cleaned = amountVal.replace(/BRL/gi, '').replace(/,/g, '.').trim();
+                    amount = parseFloat(cleaned) || 0;
+                }
+                
+                // 筛选条件：Order Substatus === "已送达" 且 Order Amount != 0
+                if (substatus === '已送达' && amount !== 0) {
+                    filtered.push(row);
+                }
+            }
+            
+            addDebug(`筛选后：从 ${data.length - 1} 行数据中保留了 ${filtered.length - 1} 行`);
             return filtered;
         }
         
@@ -513,8 +575,10 @@
                 throw new Error('找不到 Created Time 列');
             }
             
+            addDebug(`Created Time 列索引: ${createdTimeIndex}`);
+            
             const formatted = data.map((row, index) => {
-                if (index === 0) return row;
+                if (index === 0) return row; // 表头不变
                 
                 const newRow = [...row];
                 const dateValue = newRow[createdTimeIndex];
@@ -533,14 +597,20 @@
         function formatDate(dateStr) {
             if (!dateStr) return '';
             
-            // 尝试解析各种日期格式
             let date;
             
-            // 如果是Excel序列号
-            if (typeof dateStr === 'number') {
-                date = new Date((dateStr - 25569) * 86400 * 1000);
-            } else {
-                // 字符串格式：07/21/2026 1:04:34 AM
+            // 如果是Date对象（SheetJS已解析）
+            if (dateStr instanceof Date) {
+                date = dateStr;
+            }
+            // 如果是Excel序列号（数字）
+            else if (typeof dateStr === 'number') {
+                // Excel日期序列号转JavaScript Date
+                const excelEpoch = new Date(1899, 11, 30);
+                date = new Date(excelEpoch.getTime() + dateStr * 24 * 60 * 60 * 1000);
+            }
+            // 字符串格式
+            else {
                 dateStr = String(dateStr).trim();
                 
                 // 尝试解析 MM/DD/YYYY H:MM:SS AM/PM 格式
@@ -580,8 +650,10 @@
             const wb = XLSX.utils.book_new();
             
             // 创建订单明细工作表
+            // 第1行：version
+            // 第2行：表头
             const wsData = [
-                ['version', '20201013'],
+                ['version', '20201013', '', '', '', '', '', '', '', '', ''],
                 templateHeaders
             ];
             
@@ -589,25 +661,25 @@
             
             // 设置列宽
             ws['!cols'] = [
-                { wch: 15 }, // 订单编号
+                { wch: 18 }, // 订单编号
                 { wch: 12 }, // 订单日期
                 { wch: 10 }, // 订单币种
                 { wch: 12 }, // 订单金额
-                { wch: 25 }, // 商品名称
+                { wch: 40 }, // 商品名称
                 { wch: 10 }, // 商品数量
                 { wch: 12 }, // 商品单价
                 { wch: 20 }, // 店铺网址
-                { wch: 15 }, // 快递单号
-                { wch: 15 }, // 物流企业名称
+                { wch: 18 }, // 快递单号
+                { wch: 20 }, // 物流企业名称
                 { wch: 12 }  // 电商平台英文名称
             ];
             
             XLSX.utils.book_append_sheet(wb, ws, '订单明细');
             
-            return { workbook: wb, worksheet: ws, startRow: 2 };
+            return { workbook: wb, worksheet: ws, startRow: 3 }; // 从第3行开始填充数据
         }
         
-        // 处理订单编号（模拟C文件公式逻辑）
+        // 处理订单编号（模拟C文件公式逻辑：重复订单添加后缀）
         function processOrderIds(data) {
             if (data.length <= 1) return [];
             
@@ -622,8 +694,11 @@
             const idCount = {};
             const orderIds = [];
             
+            // 从data[1]开始（跳过表头）
             for (let i = 1; i < data.length; i++) {
                 const orderId = String(data[i][orderIdIndex] || '').trim();
+                
+                if (!orderId) continue;
                 
                 if (!idCount[orderId]) {
                     idCount[orderId] = 0;
@@ -657,30 +732,49 @@
                 shippingProvider: headers.findIndex(h => h && String(h).includes('Shipping Provider Name'))
             };
             
-            // 填充数据
+            addDebug(`列索引: ${JSON.stringify(columnIndex)}`);
+            
+            // 填充数据：从sourceData[1]开始（跳过表头）
             let rowCount = 0;
+            let orderIdIdx = 0;
+            
             for (let i = 1; i < sourceData.length; i++) {
                 const row = sourceData[i];
-                const targetRow = template.startRow + i - 1;
+                const targetRow = template.startRow + rowCount; // 从第3行开始
                 
                 // A列：订单编号
-                ws[`A${targetRow}`] = { t: 's', v: orderIds[i - 1] || '' };
+                const orderId = orderIds[orderIdIdx] || '';
+                ws[`A${targetRow}`] = { t: 's', v: orderId };
                 
                 // B列：订单日期
-                ws[`B${targetRow}`] = { t: 's', v: row[columnIndex.createdTime] || '' };
+                const orderDate = row[columnIndex.createdTime] || '';
+                ws[`B${targetRow}`] = { t: 's', v: orderDate };
                 
                 // C列：订单币种
                 ws[`C${targetRow}`] = { t: 's', v: 'BRL' };
                 
                 // D列：订单金额
-                const amount = parseFloat(row[columnIndex.orderAmount]) || 0;
+                let amount = 0;
+                const amountVal = row[columnIndex.orderAmount];
+                if (typeof amountVal === 'number') {
+                    amount = amountVal;
+                } else if (typeof amountVal === 'string') {
+                    const cleaned = amountVal.replace(/BRL/gi, '').replace(/,/g, '.').trim();
+                    amount = parseFloat(cleaned) || 0;
+                }
                 ws[`D${targetRow}`] = { t: 'n', v: amount };
                 
                 // E列：商品名称
                 ws[`E${targetRow}`] = { t: 's', v: row[columnIndex.productName] || '' };
                 
                 // F列：商品数量
-                const quantity = parseFloat(row[columnIndex.quantity]) || 0;
+                let quantity = 0;
+                const qtyVal = row[columnIndex.quantity];
+                if (typeof qtyVal === 'number') {
+                    quantity = qtyVal;
+                } else if (typeof qtyVal === 'string') {
+                    quantity = parseFloat(qtyVal) || 0;
+                }
                 ws[`F${targetRow}`] = { t: 'n', v: quantity };
                 
                 // G列：商品单价（订单金额 / 商品数量）
@@ -700,7 +794,10 @@
                 ws[`K${targetRow}`] = { t: 's', v: 'TK' };
                 
                 rowCount++;
+                orderIdIdx++;
             }
+            
+            addDebug(`实际填充了 ${rowCount} 行数据，使用了 ${orderIdIdx} 个订单ID`);
             
             return {
                 workbook: template.workbook,
@@ -746,6 +843,8 @@
             fileInfo.style.display = 'none';
             downloadSection.style.display = 'none';
             status.style.display = 'none';
+            debugInfo.style.display = 'none';
+            debugInfo.innerHTML = '<strong>调试信息：</strong><br>';
             progressBar.style.display = 'none';
             progressFill.style.width = '0%';
             
