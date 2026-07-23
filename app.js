@@ -294,6 +294,7 @@ class OrderProcessor {
         
         // 构建输出数据数组
         const outputData = [outputHeaders]; // 第一行是表头
+        outputData.push(['version 20201013']); // 手动添加第二行版本信息
         
         processedData.forEach(row => {
             // 解析订单金额
