@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>订单明细处理工具</title>
     <style>
+        /* --- 基础样式重置 --- */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -20,7 +21,8 @@
             align-items: center;
             padding: 20px;
         }
-        
+
+        /* --- 容器样式 --- */
         .container {
             background: white;
             border-radius: 16px;
@@ -29,21 +31,22 @@
             width: 100%;
             padding: 40px;
         }
-        
+
         h1 {
             color: #2d3748;
             font-size: 28px;
             margin-bottom: 10px;
             text-align: center;
         }
-        
+
         .subtitle {
             color: #718096;
             font-size: 14px;
             text-align: center;
             margin-bottom: 30px;
         }
-        
+
+        /* --- 上传区域样式 --- */
         .upload-area {
             border: 3px dashed #cbd5e0;
             border-radius: 12px;
@@ -53,63 +56,71 @@
             cursor: pointer;
             background: #f7fafc;
         }
-        
+
         .upload-area:hover {
             border-color: #667eea;
             background: #edf2f7;
         }
-        
+
         .upload-area.dragover {
             border-color: #667eea;
             background: #e6fffa;
             transform: scale(1.02);
         }
-        
+
         .upload-icon {
             font-size: 48px;
             margin-bottom: 15px;
         }
-        
+
         .upload-text {
             color: #4a5568;
             font-size: 16px;
             margin-bottom: 10px;
         }
-        
+
         .upload-hint {
             color: #a0aec0;
             font-size: 13px;
         }
-        
+
         #fileInput {
             display: none;
         }
-        
-        .file-info {
+
+        /* --- 文件信息与按钮样式 --- */
+        .file-info, .error-message {
             margin-top: 20px;
             padding: 15px;
-            background: #f0fff4;
-            border-left: 4px solid #48bb78;
             border-radius: 8px;
+            font-size: 14px;
             display: none;
         }
-        
-        .file-info.show {
+
+        .file-info {
+            background: #f0fff4;
+            border-left: 4px solid #48bb78;
+        }
+
+        .file-info.show, .error-message.show {
             display: block;
         }
-        
+
+        .error-message {
+            background: #fed7d7;
+            border-left: 4px solid #f56565;
+            color: #c53030;
+        }
+
         .file-name {
             color: #2f855a;
             font-weight: 600;
-            font-size: 14px;
         }
-        
-        .btn-process {
+
+        .btn-process, .btn-download {
             width: 100%;
             padding: 14px;
             margin-top: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
             border: none;
             border-radius: 8px;
             font-size: 16px;
@@ -118,30 +129,47 @@
             transition: all 0.3s ease;
             display: none;
         }
-        
-        .btn-process.show {
+
+        .btn-process.show, .btn-download.show {
             display: block;
         }
-        
+
+        .btn-process {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
         .btn-process:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
         }
-        
+
         .btn-process:disabled {
             opacity: 0.6;
             cursor: not-allowed;
         }
-        
+
+        .btn-download {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-download:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(72, 187, 120, 0.4);
+        }
+
+        /* --- 进度条样式 --- */
         .progress-container {
             margin-top: 20px;
             display: none;
         }
-        
+
         .progress-container.show {
             display: block;
         }
-        
+
         .progress-bar {
             width: 100%;
             height: 8px;
@@ -149,21 +177,22 @@
             border-radius: 4px;
             overflow: hidden;
         }
-        
+
         .progress-fill {
             height: 100%;
             background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
             width: 0%;
             transition: width 0.3s ease;
         }
-        
+
         .progress-text {
             text-align: center;
             margin-top: 10px;
             color: #4a5568;
             font-size: 14px;
         }
-        
+
+        /* --- 结果与信息框样式 --- */
         .result-container {
             margin-top: 20px;
             padding: 20px;
@@ -172,83 +201,80 @@
             border-radius: 8px;
             display: none;
         }
-        
+
         .result-container.show {
             display: block;
         }
-        
+
         .result-title {
             color: #2b6cb0;
             font-weight: 600;
             font-size: 16px;
             margin-bottom: 10px;
         }
-        
+
         .result-stats {
             color: #4a5568;
             font-size: 14px;
             line-height: 1.8;
         }
-        
-        .btn-download {
-            width: 100%;
-            padding: 14px;
-            margin-top: 15px;
-            background: #48bb78;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-download:hover {
-            background: #38a169;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(72, 187, 120, 0.4);
-        }
-        
-        .error-message {
-            margin-top: 20px;
-            padding: 15px;
-            background: #fed7d7;
-            border-left: 4px solid #f56565;
-            border-radius: 8px;
-            color: #c53030;
-            font-size: 14px;
-            display: none;
-        }
-        
-        .error-message.show {
-            display: block;
-        }
-        
-        .info-box {
+
+        .info-box, .input-group {
             margin-top: 30px;
             padding: 20px;
-            background: #fef5e7;
             border-radius: 8px;
+        }
+
+        .info-box {
+            background: #fef5e7;
             border-left: 4px solid #ed8936;
         }
-        
-        .info-title {
-            color: #c05621;
+
+        .input-group {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+        }
+
+        .info-title, .input-group label {
             font-weight: 600;
             font-size: 15px;
             margin-bottom: 10px;
+            display: block;
         }
-        
+
+        .info-title {
+            color: #c05621;
+        }
+
+        .input-group label {
+            color: #4a5568;
+            font-size: 14px;
+        }
+
         .info-list {
             color: #744210;
             font-size: 13px;
             line-height: 1.8;
             padding-left: 20px;
         }
-        
+
         .info-list li {
             margin-bottom: 5px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .input-group p {
+            color: #718096;
+            font-size: 12px;
+            margin-top: 8px;
         }
     </style>
 </head>
@@ -256,35 +282,45 @@
     <div class="container">
         <h1>📊 订单明细处理工具</h1>
         <p class="subtitle">上传B文件（OrderSKUList），自动处理后生成订单明细表格</p>
-        
+
+        <!-- 文件上传区域 -->
         <div class="upload-area" id="uploadArea">
             <div class="upload-icon">📁</div>
             <div class="upload-text">点击或拖拽上传B文件（.xlsx）</div>
             <div class="upload-hint">支持 Excel 文件格式</div>
             <input type="file" id="fileInput" accept=".xlsx,.xls">
         </div>
-        
+
+        <!-- 文件信息、处理按钮、进度条 -->
         <div class="file-info" id="fileInfo">
             <div class="file-name" id="fileName"></div>
         </div>
-        
         <button class="btn-process" id="btnProcess">开始处理</button>
-        
         <div class="progress-container" id="progressContainer">
             <div class="progress-bar">
                 <div class="progress-fill" id="progressFill"></div>
             </div>
             <div class="progress-text" id="progressText">正在处理...</div>
         </div>
-        
+
+        <!-- 处理结果与下载 -->
         <div class="result-container" id="resultContainer">
             <div class="result-title">✅ 处理完成</div>
             <div class="result-stats" id="resultStats"></div>
             <button class="btn-download" id="btnDownload">下载订单明细文件</button>
         </div>
-        
+
+        <!-- 错误信息 -->
         <div class="error-message" id="errorMessage"></div>
-        
+
+        <!-- 店铺网址输入框 -->
+        <div class="input-group">
+            <label for="shopUrlInput">🌐 店铺网址设置</label>
+            <input type="text" id="shopUrlInput" placeholder="请输入店铺网址（将自动填充到H列），留空则默认为空">
+            <p>提示：输入的内容将自动填充到导出文件的“店铺网址”列中。</p>
+        </div>
+
+        <!-- 处理说明 -->
         <div class="info-box">
             <div class="info-title">ℹ️ 处理说明</div>
             <ul class="info-list">
@@ -297,8 +333,208 @@
             </ul>
         </div>
     </div>
-    
+
+    <!-- 引入 SheetJS 库 -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <script src="app.js"></script>
-</body>
-</html>
+    <script>
+        // 等待DOM内容加载完成后再执行脚本
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- 元素选择器 ---
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            const fileInfo = document.getElementById('fileInfo');
+            const fileNameDisplay = document.getElementById('fileName');
+            const btnProcess = document.getElementById('btnProcess');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const resultContainer = document.getElementById('resultContainer');
+            const resultStats = document.getElementById('resultStats');
+            const btnDownload = document.getElementById('btnDownload');
+            const errorMessage = document.getElementById('errorMessage');
+            const shopUrlInput = document.getElementById('shopUrlInput');
+
+            let workbook = null; // 用于存储读取的工作簿对象
+
+            // --- 事件监听器 ---
+
+            // 点击上传区域触发文件选择
+            uploadArea.addEventListener('click', () => fileInput.click());
+
+            // 拖拽事件处理
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                if (e.dataTransfer.files.length) {
+                    handleFile(e.dataTransfer.files[0]);
+                }
+            });
+
+            // 文件选择框变化事件
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length) {
+                    handleFile(e.target.files[0]);
+                }
+            });
+
+            // 开始处理按钮点击事件
+            btnProcess.addEventListener('click', processWorkbook);
+
+            // 下载按钮点击事件
+            btnDownload.addEventListener('click', downloadFile);
+
+            // --- 核心功能函数 ---
+
+            /**
+             * 处理文件读取
+             * @param {File} file - 用户选择的文件对象
+             */
+            function handleFile(file) {
+                resetUI(); // 重置界面状态
+                const validTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+                
+                if (!validTypes.includes(file.type)) {
+                    showError('请上传有效的 Excel 文件 (.xlsx 或 .xls)');
+                    return;
+                }
+
+                fileNameDisplay.textContent = `已选择文件: ${file.name}`;
+                fileInfo.classList.add('show');
+                btnProcess.classList.add('show');
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        workbook = XLSX.read(data, { type: 'array' });
+                    } catch (error) {
+                        showError('文件读取失败，请检查文件是否损坏。');
+                        console.error(error);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+
+            /**
+             * 处理工作簿数据
+             */
+            function processWorkbook() {
+                if (!workbook) {
+                    showError('请先上传文件。');
+                    return;
+                }
+
+                btnProcess.disabled = true;
+                progressContainer.classList.add('show');
+                updateProgress(10, '正在读取数据...');
+
+                setTimeout(() => {
+                    try {
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+                        // 将工作表转换为JSON数组，header:1表示第一行为表头
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                        
+                        if (jsonData.length < 2) {
+                            throw new Error('文件内容为空或格式不正确。');
+                        }
+
+                        updateProgress(30, '正在清洗和转换数据...');
+                        const headers = jsonData[0];
+                        const processedData = cleanAndTransformData(jsonData.slice(1), headers);
+
+                        updateProgress(80, '正在生成新表格...');
+                        const newWorksheet = XLSX.utils.aoa_to_sheet([headers, ...processedData]);
+                        const newWorkbook = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, '订单明细');
+
+                        workbook = newWorkbook; // 保存处理后的工作簿用于下载
+                        updateProgress(100, '处理完成！');
+                        
+                        setTimeout(() => {
+                            showResult(processedData.length);
+                            progressContainer.classList.remove('show');
+                            btnProcess.disabled = false;
+                        }, 500);
+
+                    } catch (error) {
+                        showError(`处理失败: ${error.message}`);
+                        console.error(error);
+                        progressContainer.classList.remove('show');
+                        btnProcess.disabled = false;
+                    }
+                }, 100); // 使用setTimeout模拟异步处理，避免UI卡顿
+            }
+
+            /**
+             * 数据清洗和转换逻辑
+             * @param {Array<Array>} data - 原始数据行
+             * @param {Array} headers - 表头
+             * @returns {Array<Array>} - 处理后的数据行
+             */
+            function cleanAndTransformData(data, headers) {
+                const shopUrl = shopUrlInput.value.trim();
+                const orderCountMap = {}; // 用于跟踪订单号出现次数，实现去重
+
+                return data.filter(row => {
+                    // 假设第5列是订单状态，第7列是金额（根据常见表格结构推断，可能需要调整）
+                    // 这里使用列名进行查找会更健壮，但为了简化，我们假设列的顺序是固定的
+                    const statusIndex = headers.indexOf('订单状态');
+                    const amountIndex = headers.indexOf('订单金额');
+                    
+                    if (statusIndex === -1 || amountIndex === -1) return false;
+
+                    const status = row[statusIndex];
+                    const amount = parseFloat(String(row[amountIndex]).replace('BRL', '').replace(',', '.'));
+
+                    // 筛选：仅保留"已送达"且金额不为0的订单
+                    return status === '已送达' && amount !== 0;
+                }).map((row, index) => {
+                    // 找到关键列的索引
+                    const orderNoIndex = headers.indexOf('订单编号');
+                    const dateIndex = headers.indexOf('下单日期');
+                    const amountIndex = headers.indexOf('订单金额');
+                    const quantityIndex = headers.indexOf('商品数量');
+                    const priceIndex = headers.indexOf('商品单价'); // 假设这一列需要计算
+
+                    // 1. 订单编号去重
+                    if (orderNoIndex !== -1) {
+                        const orderNo = row[orderNoIndex];
+                        orderCountMap[orderNo] = (orderCountMap[orderNo] || 0) + 1;
+                        if (orderCountMap[orderNo] > 1) {
+                            row[orderNoIndex] = `${orderNo}-${orderCountMap[orderNo] - 1}`;
+                        }
+                    }
+
+                    // 2. 日期格式化 (假设原始格式为 YYYY-MM-DD 或其他可被Date解析的格式)
+                    if (dateIndex !== -1 && row[dateIndex]) {
+                        const date = new Date(row[dateIndex]);
+                        if (!isNaN(date.getTime())) {
+                            row[dateIndex] = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+                        }
+                    }
+
+                    // 3. 清理金额和计算单价
+                    if (amountIndex !== -1) {
+                        row[amountIndex] = String(row[amountIndex]).replace('BRL', '').replace(',', '.');
+                    }
+                    if (priceIndex !== -1 && quantityIndex !== -1) {
+                        const amount = parseFloat(row[amountIndex]) || 0;
+                        const quantity = parseInt(row[quantityIndex]) || 1; // 防止除以0
+                        row[priceIndex] = (amount / quantity).toFixed(2);
+                    }
+
+                    // 4. 填充店铺网址 (假设H列是第8列，索引为7)
+                    // 这里简单地找到“店铺网址”列并填充，如果不存在则添加到末尾
+                    let shopUrlColIndex =
+
+当前文件过长, 我已阅读部分内容
