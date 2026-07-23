@@ -44,7 +44,7 @@
     <h2>📊 自动化订单处理工具</h2>
     <p style="color:#666; font-size:13px; margin-bottom:20px;">系统已内置 A 文件 (模板) 和 C 文件 (公式)。您只需上传 B 文件并填写信息。</p>
 
-    <!-- 第一步：填写店铺 URL (对应需求第 11 步) -->
+    <!-- 第一步：填写店铺 URL -->
     <div class="input-group">
         <label for="shopUrl">1. 填写店铺 URL (必填)</label>
         <input type="text" id="shopUrl" placeholder="例如：https://shopee.cn/shop/..." required>
@@ -59,11 +59,13 @@
     <!-- 操作按钮 -->
     <button id="processBtn" onclick="startProcessing()">开始处理 (共11步)</button>
 
-    <!-- 进度显示 -->
+    <!-- 状态显示区域 (修复了这里：补充了 id="statusText") -->
     <div class="status-area">
+        <!-- 进度条容器 (修复了这里：补充了 id="progressBar") -->
         <div class="progress-bar-bg">
             <div class="progress-bar-fill" id="progressBar"></div>
         </div>
+        <!-- 状态文字 -->
         <span class="status-text" id="statusText">等待操作...</span>
     </div>
 
