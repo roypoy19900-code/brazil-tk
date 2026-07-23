@@ -113,12 +113,14 @@ class OrderProcessor {
             this.updateProgress(30, '清理和筛选数据...');
             
             // 执行数据处理步骤
-            const processedData = this.processData(rawData);
+            const processResult = this.processData(rawData);
+            const processedData = processResult.data;
+            const versionInfo = processResult.version;
             
             this.updateProgress(70, '生成订单明细表格...');
             
             // 生成A文件模板格式
-            const outputWorkbook = this.generateOutputFile(processedData);
+            const outputWorkbook = this.generateOutputFile(processedData, versionInfo);
             
             this.updateProgress(90, '准备下载...');
             
@@ -147,13 +149,30 @@ class OrderProcessor {
     }
     
     processData(rawData) {
-        if (rawData.length < 3) {
+        if (rawData.length < 2) {
             throw new Error('文件格式不正确，数据行数不足');
         }
         
-        // 第1行是表头，第2行是说明，从第3行开始是数据
+        // 智能判断第2行：是说明行（B文件）还是版本行（A模板）
         const headers = rawData[0];
-        const dataRows = rawData.slice(2); // 跳过第1行表头和第2行说明
+        let versionInfo = null;
+        let dataRows = [];
+        
+        if (rawData.length > 1) {
+            const secondRow = rawData[1];
+            const secondRowText = secondRow && secondRow[0] ? secondRow[0].toString() : '';
+            
+            if (secondRowText.includes('说明')) {
+                // B文件：第2行是说明，跳过
+                dataRows = rawData.slice(2);
+            } else {
+                // A模板或其他：第2行是版本信息，保留但不作为数据处理
+                versionInfo = secondRow;
+                dataRows = rawData.slice(2);
+            }
+        } else {
+            dataRows = rawData.slice(1);
+        }
         
         console.log('原始数据行数:', dataRows.length);
         console.log('表头:', headers);
@@ -239,7 +258,7 @@ class OrderProcessor {
         
         console.log('最终数据行数:', finalData.length);
         
-        return finalData;
+        return { data: finalData, version: versionInfo };
     }
     
     formatDate(dateStr) {
@@ -262,7 +281,7 @@ class OrderProcessor {
         return dateStr;
     }
     
-    generateOutputFile(processedData) {
+    generateOutputFile(processedData, versionInfo = null) {
         // 创建输出工作簿
         const outputWB = XLSX.utils.book_new();
         
@@ -294,7 +313,6 @@ class OrderProcessor {
         
         // 构建输出数据数组
         const outputData = [outputHeaders]; // 第一行是表头
-        outputData.push(['version 20201013']); // 手动添加第二行版本信息
         
         processedData.forEach(row => {
             // 解析订单金额
