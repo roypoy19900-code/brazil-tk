@@ -4,38 +4,61 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>自动化订单数据处理工具</title>
-    <!-- 引入 SheetJS 用于处理 Excel -->
+    <!-- 引入 SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-    <!-- 引入 FileSaver 用于下载文件 -->
+    <!-- 引入 FileSaver -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 450px; text-align: center; }
-        h2 { color: #333; margin-bottom: 20px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 450px; text-align: center; position: relative; z-index: 10; }
+        h2 { color: #333; margin-bottom: 20px; font-size: 22px; }
         
-        /* 输入框组样式 */
+        /* 输入框组 */
         .input-group { margin-bottom: 20px; text-align: left; }
         .input-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; font-size: 14px; }
-        .input-group input[type="file"], 
-        .input-group input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        .input-group input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 14px; transition: border 0.3s; }
         .input-group input[type="text"]:focus { border-color: #007bff; outline: none; }
         
-        /* 按钮样式 */
-        button { background-color: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; width: 100%; transition: background 0.3s; }
-        button:hover { background-color: #0056b3; }
-        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        /* 文件上传美化 */
+        .file-upload-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
+        .file-upload-btn { border: 1px solid #ddd; color: #555; background-color: white; padding: 8px 20px; border-radius: 6px; font-size: 14px; font-weight: bold; width: 100%; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; }
+        .file-upload-btn:hover { background-color: #f9f9f9; }
+        input[type=file] { font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%; width: 100%; }
         
-        /* 状态与进度条 */
-        .status-area { margin-top: 20px; min-height: 60px; }
-        .progress-bar-bg { background-color: #e9ecef; border-radius: 10px; height: 10px; width: 100%; margin-top: 10px; overflow: hidden; }
-        .progress-bar-fill { background-color: #28a745; height: 100%; width: 0%; transition: width 0.3s ease; }
-        .status-text { font-size: 14px; color: #666; margin-top: 5px; display: block; }
+        /* 按钮 */
+        button#processBtn { background-color: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; width: 100%; transition: background 0.3s; margin-top: 10px; }
+        button#processBtn:hover { background-color: #0056b3; }
+        button#processBtn:disabled { background-color: #ccc; cursor: not-allowed; }
         
-        /* 结果区域 */
-        #resultArea { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px dashed #ddd; }
-        .download-btn { background-color: #28a745; margin-top: 10px; }
-        .download-btn:hover { background-color: #218838; }
+        /* 状态与进度条区域 - 关键修复部分 */
+        .status-area { margin-top: 25px; min-height: 40px; }
+        .status-text { font-size: 14px; color: #666; margin-bottom: 8px; display: block; min-height: 20px;}
+        
+        /* 进度条容器 - 必须存在 */
+        #progressContainer { 
+            width: 100%; 
+            background-color: #e9ecef; 
+            border-radius: 10px; 
+            height: 10px; 
+            overflow: hidden; 
+            display: none; /* 默认隐藏，JS控制显示 */
+            margin-top: 5px;
+        }
+        /* 进度条填充 - 必须存在 */
+        #progressBar { 
+            width: 0%; 
+            height: 100%; 
+            background-color: #28a745; 
+            transition: width 0.3s ease; 
+        }
+
+        /* 结果下载区 */
+        #resultArea { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px dashed #ddd; animation: fadeIn 0.5s; }
+        .download-btn { background-color: #28a745 !important; margin-top: 10px; }
+        .download-btn:hover { background-color: #218838 !important; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -44,39 +67,55 @@
     <h2>📊 自动化订单处理工具</h2>
     <p style="color:#666; font-size:13px; margin-bottom:20px;">系统已内置 A 文件 (模板) 和 C 文件 (公式)。您只需上传 B 文件并填写信息。</p>
 
-    <!-- 第一步：填写店铺 URL -->
+    <!-- 1. 店铺 URL -->
     <div class="input-group">
         <label for="shopUrl">1. 填写店铺 URL (必填)</label>
         <input type="text" id="shopUrl" placeholder="例如：https://shopee.cn/shop/..." required>
     </div>
 
-    <!-- 第二步：上传巴西TK原始订单文件 -->
+    <!-- 2. 上传文件 -->
     <div class="input-group">
-        <label for="fileInput">2. 上传 B 文件 (Excel)</label>
-        <input type="file" id="fileInput" accept=".xlsx, .xls" required>
+        <label>2. 上传 B 文件 (Excel)</label>
+        <div class="file-upload-wrapper">
+            <button class="file-upload-btn">
+                <span id="fileName">点击选择文件...</span>
+                <span>📂</span>
+            </button>
+            <input type="file" id="fileInput" accept=".xlsx, .xls" required>
+        </div>
     </div>
 
     <!-- 操作按钮 -->
     <button id="processBtn" onclick="startProcessing()">开始处理 (共11步)</button>
 
-    <!-- 状态显示区域 (修复了这里：补充了 id="statusText") -->
+    <!-- 状态显示区域 (JS 需要找这里的 ID) -->
     <div class="status-area">
-        <!-- 进度条容器 (修复了这里：补充了 id="progressBar") -->
-        <div class="progress-bar-bg">
-            <div class="progress-bar-fill" id="progressBar"></div>
-        </div>
-        <!-- 状态文字 -->
         <span class="status-text" id="statusText">等待操作...</span>
+        
+        <!-- 进度条容器 (JS 需要找这里的 ID) -->
+        <div id="progressContainer">
+            <div id="progressBar"></div>
+        </div>
     </div>
 
-    <!-- 下载区域 -->
+    <!-- 结果下载区域 -->
     <div id="resultArea">
-        <p style="color: #28a745; font-weight: bold;">✅ 处理完成！</p>
-        <button class="download-btn" onclick="downloadResult()">⬇️ 下载处理后的 结果 文件</button>
+        <p style="color: #28a745; font-weight: bold; margin:0;">✅ 处理完成！</p>
+        <button class="download-btn" onclick="downloadResult()">⬇️ 下载处理后的结果文件</button>
     </div>
 </div>
 
-<!-- 引入你的逻辑脚本 -->
+<!-- 简单的脚本用于显示文件名 -->
+<script>
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        var fileName = e.target.files[0] ? e.target.files[0].name : "点击选择文件...";
+        document.getElementById('fileName').innerText = fileName;
+        // 同时更新一下全局的状态提示
+        if(window.statusText) window.statusText.innerText = "✅ 已读取文件: " + fileName + "，点击开始处理";
+    });
+</script>
+
+<!-- 引入你的主逻辑脚本 -->
 <script src="script.js"></script>
 
 </body>
