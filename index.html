@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>订单明细处理工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #2d3748;
+            font-size: 28px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .subtitle {
+            color: #718096;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #f7fafc;
+        }
+        
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #edf2f7;
+        }
+        
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #e6fffa;
+            transform: scale(1.02);
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .upload-text {
+            color: #4a5568;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .upload-hint {
+            color: #a0aec0;
+            font-size: 13px;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .file-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0fff4;
+            border-left: 4px solid #48bb78;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .file-info.show {
+            display: block;
+        }
+        
+        .file-name {
+            color: #2f855a;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .btn-process {
+            width: 100%;
+            padding: 14px;
+            margin-top: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: none;
+        }
+        
+        .btn-process.show {
+            display: block;
+        }
+        
+        .btn-process:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-process:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .progress-container.show {
+            display: block;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            color: #4a5568;
+            font-size: 14px;
+        }
+        
+        .result-container {
+            margin-top: 20px;
+            padding: 20px;
+            background: #ebf8ff;
+            border-left: 4px solid #4299e1;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .result-container.show {
+            display: block;
+        }
+        
+        .result-title {
+            color: #2b6cb0;
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .result-stats {
+            color: #4a5568;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        
+        .btn-download {
+            width: 100%;
+            padding: 14px;
+            margin-top: 15px;
+            background: #48bb78;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-download:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(72, 187, 120, 0.4);
+        }
+        
+        .error-message {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fed7d7;
+            border-left: 4px solid #f56565;
+            border-radius: 8px;
+            color: #c53030;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        .info-box {
+            margin-top: 30px;
+            padding: 20px;
+            background: #fef5e7;
+            border-radius: 8px;
+            border-left: 4px solid #ed8936;
+        }
+        
+        .info-title {
+            color: #c05621;
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .info-list {
+            color: #744210;
+            font-size: 13px;
+            line-height: 1.8;
+            padding-left: 20px;
+        }
+        
+        .info-list li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 订单明细处理工具</h1>
+        <p class="subtitle">上传B文件（OrderSKUList），自动处理后生成订单明细表格</p>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">点击或拖拽上传B文件（.xlsx）</div>
+            <div class="upload-hint">支持 Excel 文件格式</div>
+            <input type="file" id="fileInput" accept=".xlsx,.xls">
+        </div>
+        
+        <div class="file-info" id="fileInfo">
+            <div class="file-name" id="fileName"></div>
+        </div>
+        
+        <button class="btn-process" id="btnProcess">开始处理</button>
+        
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">正在处理...</div>
+        </div>
+        
+        <div class="result-container" id="resultContainer">
+            <div class="result-title">✅ 处理完成</div>
+            <div class="result-stats" id="resultStats"></div>
+            <button class="btn-download" id="btnDownload">下载订单明细文件</button>
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+        
+        <div class="info-box">
+            <div class="info-title">ℹ️ 处理说明</div>
+            <ul class="info-list">
+                <li>自动清理数据：删除"BRL"字符，将逗号替换为点号</li>
+                <li>智能筛选：仅保留"已送达"订单，剔除金额为0的记录</li>
+                <li>日期格式化：统一转换为 YYYY/MM/DD 格式</li>
+                <li>订单编号去重：重复订单自动添加后缀（-1, -2等）</li>
+                <li>自动计算商品单价：订单金额 ÷ 商品数量</li>
+                <li>完整字段填充：包含物流信息、电商平台等全部字段</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
