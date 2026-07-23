@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -258,6 +257,7 @@
         <h1>📊 订单明细处理工具</h1>
         <p class="subtitle">上传B文件（OrderSKUList），自动处理后生成订单明细表格</p>
         
+        <!-- 1. 原有的文件上传区域 -->
         <div class="upload-area" id="uploadArea">
             <div class="upload-icon">📁</div>
             <div class="upload-text">点击或拖拽上传B文件（.xlsx）</div>
@@ -265,18 +265,19 @@
             <input type="file" id="fileInput" accept=".xlsx,.xls">
         </div>
 
-<!-- 在 <div class="info-box"> 标签之前插入以下代码 -->
-<div class="input-group" style="margin-top: 30px; padding: 20px; background: #f7fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-    <label for="shopUrlInput" style="display: block; color: #4a5568; font-weight: 600; margin-bottom: 8px; font-size: 14px;">
-        🌐 店铺网址设置
-    </label>
-    <input type="text" id="shopUrlInput" placeholder="请输入店铺网址（将自动填充到H列），留空则默认为空" 
-           style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
-    <p style="color: #718096; font-size: 12px; margin-top: 8px;">
-        提示：输入的内容将自动填充到导出文件的“店铺网址”列中。
-    </p>
-</div>
+        <!-- 2. 新增的“店铺网址”输入框 -->
+        <div class="input-group" style="margin-top: 30px; padding: 20px; background: #f7fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <label for="shopUrlInput" style="display: block; color: #4a5568; font-weight: 600; margin-bottom: 8px; font-size: 14px;">
+                🌐 店铺网址设置
+            </label>
+            <input type="text" id="shopUrlInput" placeholder="请输入店铺网址（将自动填充到H列），留空则默认为空" 
+                   style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+            <p style="color: #718096; font-size: 12px; margin-top: 8px;">
+                提示：输入的内容将自动填充到导出文件的“店铺网址”列中。
+            </p>
+        </div>
         
+        <!-- 3. 原有的文件信息、按钮等区域 -->
         <div class="file-info" id="fileInfo">
             <div class="file-name" id="fileName"></div>
         </div>
