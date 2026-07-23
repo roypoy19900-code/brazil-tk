@@ -22,6 +22,7 @@ class OrderProcessor {
         this.selectedFile = null;
         this.processedData = null;
         this.outputFileName = '订单明细.xlsx';
+        
         this.init();
     }
 
@@ -41,9 +42,11 @@ class OrderProcessor {
             e.preventDefault();
             this.uploadArea.classList.add('dragover');
         });
+
         this.uploadArea.addEventListener('dragleave', () => {
             this.uploadArea.classList.remove('dragover');
         });
+
         this.uploadArea.addEventListener('drop', (e) => {
             e.preventDefault();
             this.uploadArea.classList.remove('dragover');
@@ -100,8 +103,8 @@ class OrderProcessor {
 
             // 读取Excel文件
             const arrayBuffer = await this.readFileAsArrayBuffer(this.selectedFile);
+            
             this.updateProgress(20, '解析Excel数据...');
-
             // 使用SheetJS解析
             const workbook = XLSX.read(arrayBuffer, { type: 'array' });
             const sheetName = workbook.SheetNames[0];
@@ -109,25 +112,25 @@ class OrderProcessor {
 
             // 转换为JSON（第1行为表头）
             const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-            this.updateProgress(30, '清理和筛选数据...');
 
+            this.updateProgress(30, '清理和筛选数据...');
             // 执行数据处理步骤
             const processResult = this.processData(rawData);
             const processedData = processResult.data;
             const versionInfo = processResult.version;
 
             this.updateProgress(70, '生成订单明细表格...');
-
+            
             // 【修改】获取输入框的值，如果没有输入则默认为空字符串
             const shopUrl = this.shopUrlInput ? this.shopUrlInput.value.trim() : '';
-
+            
             // 【修改】将 shopUrl 作为参数传递给 generateOutputFile
             const outputWorkbook = this.generateOutputFile(processedData, versionInfo, shopUrl);
 
             this.updateProgress(90, '准备下载...');
-
             // 保存结果
             this.processedData = outputWorkbook;
+
             this.updateProgress(100, '处理完成！');
 
             // 显示结果统计
@@ -162,6 +165,7 @@ class OrderProcessor {
         if (rawData.length > 1) {
             const secondRow = rawData[1];
             const secondRowText = secondRow && secondRow[0] ? secondRow[0].toString() : '';
+            
             if (secondRowText.includes('说明')) {
                 // B文件：第2行是说明，跳过
                 dataRows = rawData.slice(2);
@@ -179,14 +183,14 @@ class OrderProcessor {
 
         // 列映射（基于B文件的实际列位置）
         const colMap = {
-            orderId: 0,         // A列 - Order ID
-            orderStatus: 2,     // C列 - Order Status
-            orderSubstatus: 3,  // D列 - Order Substatus
-            productName: 8,     // I列 - Product Name
-            quantity: 11,       // L列 - Quantity
-            orderAmount: 23,    // X列 - Order Amount
-            createdTime: 28,    // AC列 - Created Time
-            trackingId: 36,     // AK列 - Tracking ID
+            orderId: 0,       // A列 - Order ID
+            orderStatus: 2,   // C列 - Order Status
+            orderSubstatus: 3,// D列 - Order Substatus
+            productName: 8,   // I列 - Product Name
+            quantity: 11,     // L列 - Quantity
+            orderAmount: 23,  // X列 - Order Amount
+            createdTime: 28,  // AC列 - Created Time
+            trackingId: 36,   // AK列 - Tracking ID
             shippingProvider: 41 // AO列 - Shipping Provider Name
         };
 
@@ -209,12 +213,14 @@ class OrderProcessor {
             if (substatus !== '已送达') {
                 return false;
             }
+
             // 剔除Order Amount为0的行
             const amountStr = String(row[colMap.orderAmount] || '0');
             const amount = parseFloat(amountStr);
             if (isNaN(amount) || amount === 0) {
                 return false;
             }
+
             return true;
         });
 
@@ -317,20 +323,24 @@ class OrderProcessor {
             const unitPrice = quantity > 0 ? (amount / quantity).toFixed(2) : '0.00';
 
             const outputRow = [
-                row[colMap.orderId],      // 订单编号
-                row[colMap.createdTime],  // 订单日期（已格式化）
-                'BRL',                    // 订单币种固定为BRL
-                amount,                   // 订单金额
-                row[colMap.productName],  // 商品名称
-                quantity,                 // 商品数量
-                parseFloat(unitPrice),    // 商品单价
-                shopUrl,                  // 【修改】店铺网址 (使用传入的参数)
-                row[colMap.trackingId],   // 快递单号
-                row[colMap.shippingProvider], // 物流企业名称
-                'TK'                      // 电商平台英文名称固定为TK
+                row[colMap.orderId],           // 订单编号
+                row[colMap.createdTime],       // 订单日期（已格式化）
+                'BRL',                         // 订单币种固定为BRL
+                amount,                        // 订单金额
+                row[colMap.productName],       // 商品名称
+                quantity,                      // 商品数量
+                parseFloat(unitPrice),         // 商品单价
+                shopUrl,                       // 【修改】店铺网址 (使用传入的参数)
+                row[colMap.trackingId],        // 快递单号
+                row[colMap.shippingProvider],  // 物流企业名称
+                'TK'                           // 电商平台英文名称固定为TK
             ];
+
             outputData.push(outputRow);
         });
+
+        // 【新增】在表头之上插入一行空白行
+        outputData.unshift([]);
 
         // 创建工作表
         const outputWS = XLSX.utils.aoa_to_sheet(outputData);
@@ -371,6 +381,7 @@ class OrderProcessor {
             this.showError('没有可下载的文件');
             return;
         }
+
         try {
             // 生成Excel文件并触发下载
             XLSX.writeFile(this.processedData, this.outputFileName);
