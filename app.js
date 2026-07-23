@@ -308,7 +308,7 @@ class OrderProcessor {
             quantity: 11,
             orderAmount: 23,
             trackingId: 36,
-            shippingProvider: 41
+            shippingProvider: 40
         };
         
         // 构建输出数据数组
